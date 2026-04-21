@@ -1,8 +1,17 @@
 const express = require("express");
+const cors = require("cors");
 const { exec } = require("child_process");
 const fs = require("fs");
 
 const app = express();
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
+
+app.options("*", cors());
+
 app.use(express.json());
 app.use("/frames", express.static("frames"));
 if (!fs.existsSync("frames")) {
