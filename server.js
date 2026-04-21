@@ -52,7 +52,7 @@ async function getBestFrame(files) {
 
 
 // 🚀 GENERATE FRAME
-app.post("/generate", async (req, res) => {
+app.post("/generate", (req, res) => {
   const url = req.body.url;
 
   if (!url) {
@@ -62,24 +62,26 @@ app.post("/generate", async (req, res) => {
   const videoFile = `video_${Date.now()}.mp4`;
 
   console.log("Download video...");
+  console.log("URL:", url);
 
-  exec(`yt-dlp -f "bv*+ba/b" -o ${videoFile} "${url}"`, async (err, stdout, stderr) => {
+  exec(`yt-dlp -f "bv*+ba/b" -o ${videoFile} "${url}"`, (err, stdout, stderr) => {
     if (err) {
       console.log("YTDLP ERROR:", stderr);
       return res.json({ error: "Download gagal" });
     }
 
-    console.log("Ambil frame...");
+    if (!fs.existsSync(videoFile)) {
+      return res.json({ error: "Video gagal didownload" });
+    }
 
-    console.log("Video file:", videoFile);
-console.log("URL:", url);
+    console.log("Ambil frame...");
 
     // hapus frame lama
     fs.readdirSync("frames").forEach(file => {
       fs.unlinkSync(`frames/${file}`);
     });
 
-    exec(`ffmpeg -i ${videoFile} -vf "fps=1,scale=720:-1" frames/frame_%03d.jpg`, async (err, stdout, stderr) => {
+    exec(`ffmpeg -i "${videoFile}" -vf "fps=1,scale=720:-1" frames/frame_%03d.jpg`, async (err, stdout, stderr) => {
       if (err) {
         console.log("FFMPEG ERROR:", stderr);
         return res.json({ error: "FFmpeg gagal" });
@@ -87,18 +89,28 @@ console.log("URL:", url);
 
       const files = fs.readdirSync("frames");
 
-      // 🔥 BEST FRAME
-      const bestFrame = await getBestFrame(files);
+      if (files.length === 0) {
+        return res.json({ error: "Frame kosong" });
+      }
 
-      const urls = files.map(file => `${BASE_URL}/frames/${file}`);
+      try {
+        const bestFrame = await getBestFrame(files);
 
-      res.json({
-        success: true,
-        frames: urls,
-        best: `${BASE_URL}/frames/${bestFrame}`
-      });
+        const urls = files.map(file => `${BASE_URL}/frames/${file}`);
 
-      // 🔥 CLEANUP VIDEO
+        res.json({
+          success: true,
+          frames: urls,
+          best: `${BASE_URL}/frames/${bestFrame}`,
+          video: `${BASE_URL}/download-video?file=${videoFile}`
+        });
+
+      } catch (e) {
+        console.log("BEST FRAME ERROR:", e);
+        return res.json({ error: "Gagal proses gambar" });
+      }
+
+      // cleanup video
       setTimeout(() => {
         try {
           fs.unlinkSync(videoFile);
@@ -109,16 +121,19 @@ console.log("URL:", url);
 });
 
 
-// 🎬 DOWNLOAD VIDEO
+// 🎬 DOWNLOAD VIDEO (by filename)
 app.get("/download-video", (req, res) => {
-  const files = fs.readdirSync(".");
-  const video = files.find(f => f.endsWith(".mp4"));
+  const file = req.query.file;
 
-  if (!video) {
+  if (!file) {
+    return res.json({ error: "File tidak ada" });
+  }
+
+  if (!fs.existsSync(file)) {
     return res.json({ error: "Video tidak ditemukan" });
   }
 
-  res.download(video);
+  res.download(file);
 });
 
 
