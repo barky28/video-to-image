@@ -115,7 +115,7 @@ app.post("/generate", (req, res) => {
         try {
           fs.unlinkSync(videoFile);
         } catch {}
-      }, 15000);
+      }, 60000);
     });
   });
 });
