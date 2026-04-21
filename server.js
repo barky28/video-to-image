@@ -10,7 +10,9 @@ app.use(cors({
   allowedHeaders: ["Content-Type"]
 }));
 
-app.options("*", cors());
+app.use(cors({
+  origin: "*"
+}));
 
 app.use(express.json());
 app.use("/frames", express.static("frames"));
