@@ -31,13 +31,39 @@ app.post("/generate", (req, res) => {
     return res.json({ error: "URL kosong" });
   }
 
-  exec(`yt-dlp -f "bv*+ba/b" -o video.mp4 ${url}`, (err) => {
-    if (err) return res.json({ error: "Download gagal" });
+  exec(`yt-dlp -f "bv*+ba/b" -o video.mp4 ${url}`, (err, stdout, stderr) => {
+  if (err) {
+    console.log("YTDLP ERROR:", stderr);
+    return res.json({ error: "Download gagal" });
+  }
 
-    exec(`ffmpeg -i video.mp4 -vf fps=1 frames/frame_%03d.jpg`, (err) => {
-      if (err) return res.json({ error: "FFmpeg gagal" });
+  console.log("Download sukses");
 
-      const files = fs.readdirSync("frames");
+  // hapus frame lama
+  fs.readdirSync("frames").forEach(file => {
+    fs.unlinkSync(`frames/${file}`);
+  });
+
+  exec(`ffmpeg -i video.mp4 -vf fps=1 frames/frame_%03d.jpg`, (err, stdout, stderr) => {
+    if (err) {
+      console.log("FFMPEG ERROR:", stderr);
+      return res.json({ error: "FFmpeg gagal" });
+    }
+
+    console.log("FFmpeg sukses");
+
+    const files = fs.readdirSync("frames");
+
+    const urls = files.map(file => {
+      return `https://video-to-image-production.up.railway.app/frames/${file}`;
+    });
+
+    res.json({
+      success: true,
+      frames: urls
+    });
+  });
+});
 
 const urls = files.map(file => {
   return `http://localhost:3000/frames/${file}`;
